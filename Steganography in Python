@@ -1,0 +1,59 @@
+from PIL import Image
+
+def hide_text_in_image(image_path, secret_text, output_path):
+    image = Image.open(image_path)
+    pixels = list(image.getdata())
+    width, height = image.size
+
+    binary_secret_text = ''.join(format(ord(char), '08b') for char in secret_text)
+    if len(binary_secret_text) > width * height:
+        raise ValueError("Image is too small to hide the entire secret text.")
+
+    index = 0
+    for pixel in pixels:
+        if index < len(binary_secret_text):
+            r, g, b = pixel
+            r = r & 0xFE | int(binary_secret_text[index])
+            index += 1
+            if index < len(binary_secret_text):
+                g = g & 0xFE | int(binary_secret_text[index])
+                index += 1
+            if index < len(binary_secret_text):
+                b = b & 0xFE | int(binary_secret_text[index])
+                index += 1
+            pixels[index-1] = (r, g, b)
+
+    image.putdata(pixels)
+    image.save(output_path)
+
+def extract_text_from_image(image_path):
+    image = Image.open(image_path)
+    pixels = list(image.getdata())
+
+    binary_secret_text = ""
+    for pixel in pixels:
+        r, g, b = pixel
+        binary_secret_text += str(r & 1)
+        binary_secret_text += str(g & 1)
+        binary_secret_text += str(b & 1)
+
+    secret_text = ""
+    for i in range(0, len(binary_secret_text), 8):
+        byte = binary_secret_text[i:i+8]
+        secret_text += chr(int(byte, 2))
+
+    return secret_text
+
+if __name__ == "__main__":
+    # Example usage:
+    image_path = "image.png"
+    secret_text = "This is a secret message."
+    output_path = "output.png"
+
+    # Hide the secret text in the image
+    hide_text_in_image(image_path, secret_text, output_path)
+    print("Secret text hidden in image.")
+
+    # Extract the secret text from the image
+    extracted_text = extract_text_from_image(output_path)
+    print("Extracted text:", extracted_text)
